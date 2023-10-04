@@ -8,13 +8,14 @@ const Contact = require("../contact");
 const fs = require("fs");
 const Gallery = require("../gallery");
 const Order = require("../orderModel");
+const cloudinary = require("cloudinary");
 
 const token = uuidv4();
 
 // Configure multer for image upload
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "../e-bag/src/uploads/");
+    cb(null, "uploads/");
   },
   filename: function (req, file, cb) {
     const ext = path.extname(file.originalname);
@@ -22,7 +23,7 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage }).single("image");
+const uploadStock = multer({ storage }).single("image");
 
 // Configure multer for gallery upload
 const storageGallery = multer.diskStorage({
@@ -37,32 +38,77 @@ const storageGallery = multer.diskStorage({
 
 const uploadGallery = multer({ storage: storageGallery });
 
+// cloudinary config
+cloudinary.config({
+  cloud_name: 'djrh8oflc',
+  api_key: '544113442678141',
+  api_secret: 'G6AKEYGFz2eiEcVHXg-4myu5cXg'
+});
+
 // POST route to handle image uploads
 router.post("/upload", async (req, res) => {
   try {
-    upload(req, res, async (err) => {
-      if (err) {
-        console.error(err);
-        return res.status(500).send({ message: "Image upload failed" });
-      }
-
-      const user = new ImageModel({
-        name: req.body.name,
-        price: req.body.price,
-        token: uuidv4(),
-        quantity: req.body.quantity,
-        image: req.file.filename,
+    // Wrap the uploadStock call in a promise to handle any potential rejections
+    const multerPromise = new Promise((resolve, reject) => {
+      uploadStock(req, res, (err) => {
+        if (err) {
+          reject(err); 
+        } else {
+          resolve(); 
+        }
       });
-
-      await user.save();
-
-      res.status(200).send({ message: "Image uploaded successfully" });
     });
+
+    // Wait for the multerPromise to resolve before continuing
+    await multerPromise;
+
+    const result = await cloudinary.uploader.upload(req.file.path);
+    const originalname = req.file.filename;
+
+    const user = new ImageModel({
+      name: req.body.name,
+      price: req.body.price,
+      token: uuidv4(),
+      quantity: req.body.quantity,
+      image: originalname,
+      imageUrl: result.secure_url,
+    });
+
+    await user.save();
+
+    res.status(200).send({ message: "Image uploaded successfully" });
   } catch (error) {
     console.error(error);
     res.status(500).send({ message: "Image upload failed" });
   }
 });
+
+
+// get route to handle image from cloudinary and db
+router.get('/getImages', async (req, res) => {
+  try {
+    // Fetch data from your ImageModel
+    const imageData = await ImageModel.find();
+
+    // Create an array to store image URLs
+    const imageUrls = [];
+
+    // Generate Cloudinary URLs for each image and add them to the array
+    for (const item of imageData) {
+      imageUrls.push(cloudinary.url(item.image));
+    }
+
+    // Respond with image URLs and data
+    res.status(200).json({ imageUrls, imageData });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Error retrieving images and data" });
+  }
+});
+
+
+
+
 
 // Other routes
 router.get("/", (req, res) => {
@@ -129,6 +175,8 @@ router.get("/users", (req, res) => {
   }
 });
 
+
+
 // delete api to delete contact user
 router.get("/delete/:token", async (req, res) => {
   try {
@@ -145,7 +193,7 @@ router.get("/delete/:token", async (req, res) => {
   }
 });
 
-router.post("/update/:token", upload, async (req, res) => {
+router.post("/update/:token", uploadStock, async (req, res) => {
   let token = req.params.token;
   let new_image = "";
 
@@ -357,7 +405,7 @@ router.post("/order", async (req, res) => {
       }
     }
   } catch (error) {
-    res.status(401).json({error});  
+    res.status(401).json({ error });
   }
 })
 
