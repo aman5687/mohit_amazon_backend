@@ -2,13 +2,16 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
-const ImageModel = require("../image.model");
 const { v4: uuidv4 } = require("uuid");
 const Contact = require("../contact");
 const fs = require("fs");
 const Gallery = require("../gallery");
 const Order = require("../orderModel");
 const cloudinary = require("cloudinary");
+const ImageModel = require("../image.model");
+const SecondBag = require("../bag2");
+const ThirdBag = require("../bag3");
+const FourthBag = require("../bag4");
 
 const token = uuidv4();
 
@@ -46,15 +49,15 @@ cloudinary.config({
 });
 
 // POST route to handle image uploads
-router.post("/upload", async (req, res) => {
+router.post("/bag1", async (req, res) => {
   try {
     // Wrap the uploadStock call in a promise to handle any potential rejections
     const multerPromise = new Promise((resolve, reject) => {
       uploadStock(req, res, (err) => {
         if (err) {
-          reject(err); 
+          reject(err);
         } else {
-          resolve(); 
+          resolve();
         }
       });
     });
@@ -62,7 +65,10 @@ router.post("/upload", async (req, res) => {
     // Wait for the multerPromise to resolve before continuing
     await multerPromise;
 
-    const result = await cloudinary.uploader.upload(req.file.path);
+    const result = await cloudinary.v2.uploader.upload(req.file.path, {
+      folder: 'bag1',
+    });
+
     const originalname = req.file.filename;
 
     const user = new ImageModel({
@@ -85,13 +91,20 @@ router.post("/upload", async (req, res) => {
 
 
 // get route to handle image from cloudinary and db
-router.get('/getImages', async (req, res) => {
+router.get('/bag1', async (req, res) => {
   try {
+    const folderName = 'bag1';
+
+    // Fetch images from the specified folder on Cloudinary
+    const imageSearchResults = await cloudinary.v2.search
+      .expression(`folder:${folderName}`)
+      .execute();
+
+    // Create an array to store image URLs
+    const imageUrls = imageSearchResults.resources.map((resource) => resource.secure_url);
     // Fetch data from your ImageModel
     const imageData = await ImageModel.find();
 
-    // Create an array to store image URLs
-    const imageUrls = [];
 
     // Generate Cloudinary URLs for each image and add them to the array
     for (const item of imageData) {
@@ -105,6 +118,244 @@ router.get('/getImages', async (req, res) => {
     res.status(500).send({ message: "Error retrieving images and data" });
   }
 });
+
+
+// post api for bag 2
+router.post("/bag2", async (req, res) => {
+  try {
+    // Wrap the uploadStock call in a promise to handle any potential rejections
+    const multerPromise = new Promise((resolve, reject) => {
+      uploadStock(req, res, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    // Wait for the multerPromise to resolve before continuing
+    await multerPromise;
+
+    const result = await cloudinary.v2.uploader.upload(req.file.path, {
+      folder: 'bag2',
+    });
+
+    const originalname = req.file.filename;
+
+    const user = new SecondBag({
+      name: req.body.name,
+      price: req.body.price,
+      token: uuidv4(),
+      quantity: req.body.quantity,
+      image: originalname,
+      imageUrl: result.secure_url,
+    });
+
+    await user.save();
+
+    res.status(200).send({ message: "Image uploaded successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Image upload failed" });
+  }
+});
+
+
+// get api for bag 2
+router.get('/bag2', async (req, res) => {
+  try {
+    const folderName = 'bag2';
+
+    // Fetch images from the specified folder on Cloudinary
+    const imageSearchResults = await cloudinary.v2.search
+      .expression(`folder:${folderName}`)
+      .execute();
+
+    // Create an array to store image URLs
+    const imageUrls = imageSearchResults.resources.map((resource) => resource.secure_url);
+    // Fetch data from your ImageModel
+    const imageData = await SecondBag.find();
+
+
+    // Generate Cloudinary URLs for each image and add them to the array
+    for (const item of imageData) {
+      imageUrls.push(cloudinary.url(item.image));
+    }
+
+    // Respond with image URLs and data
+    res.status(200).json({ imageUrls, imageData });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Error retrieving images and data" });
+  }
+});
+
+
+// post api for bag 3
+router.post("/bag3", async (req, res) => {
+  try {
+    // Wrap the uploadStock call in a promise to handle any potential rejections
+    const multerPromise = new Promise((resolve, reject) => {
+      uploadStock(req, res, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    // Wait for the multerPromise to resolve before continuing
+    await multerPromise;
+
+    const result = await cloudinary.v2.uploader.upload(req.file.path, {
+      folder: 'bag3',
+    });
+
+    const originalname = req.file.filename;
+
+    const user = new ThirdBag({
+      name: req.body.name,
+      price: req.body.price,
+      token: uuidv4(),
+      quantity: req.body.quantity,
+      image: originalname,
+      imageUrl: result.secure_url,
+    });
+
+    await user.save();
+
+    res.status(200).send({ message: "Image uploaded successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Image upload failed" });
+  }
+});
+
+// get api for bag 3
+router.get('/bag3', async (req, res) => {
+  try {
+    const folderName = 'bag3';
+
+    // Fetch images from the specified folder on Cloudinary
+    const imageSearchResults = await cloudinary.v2.search
+      .expression(`folder:${folderName}`)
+      .execute();
+
+    // Create an array to store image URLs
+    const imageUrls = imageSearchResults.resources.map((resource) => resource.secure_url);
+    // Fetch data from your ImageModel
+    const imageData = await ThirdBag.find();
+
+
+    // Generate Cloudinary URLs for each image and add them to the array
+    for (const item of imageData) {
+      imageUrls.push(cloudinary.url(item.image));
+    }
+
+    // Respond with image URLs and data
+    res.status(200).json({ imageUrls, imageData });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Error retrieving images and data" });
+  }
+});
+
+
+// post api for bag 4
+router.post("/bag4", async (req, res) => {
+  try {
+    // Wrap the uploadStock call in a promise to handle any potential rejections
+    const multerPromise = new Promise((resolve, reject) => {
+      uploadStock(req, res, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    // Wait for the multerPromise to resolve before continuing
+    await multerPromise;
+
+    const result = await cloudinary.v2.uploader.upload(req.file.path, {
+      folder: 'bag4',
+    });
+
+    const originalname = req.file.filename;
+
+    const user = new FourthBag({
+      name: req.body.name,
+      price: req.body.price,
+      token: uuidv4(),
+      quantity: req.body.quantity,
+      image: originalname,
+      imageUrl: result.secure_url,
+    });
+
+    await user.save();
+
+    res.status(200).send({ message: "Image uploaded successfully" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Image upload failed" });
+  }
+});
+
+
+// get api for bag 4
+router.get('/bag4', async (req, res) => {
+  try {
+    const folderName = 'bag4';
+
+    // Fetch images from the specified folder on Cloudinary
+    const imageSearchResults = await cloudinary.v2.search
+      .expression(`folder:${folderName}`)
+      .execute();
+
+    // Create an array to store image URLs
+    const imageUrls = imageSearchResults.resources.map((resource) => resource.secure_url);
+    // Fetch data from your ImageModel
+    const imageData = await FourthBag.find();
+
+
+    // Generate Cloudinary URLs for each image and add them to the array
+    for (const item of imageData) {
+      imageUrls.push(cloudinary.url(item.image));
+    }
+
+    // Respond with image URLs and data
+    res.status(200).json({ imageUrls, imageData });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({ message: "Error retrieving images and data" });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
