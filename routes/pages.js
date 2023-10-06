@@ -48,46 +48,41 @@ cloudinary.config({
   api_secret: 'G6AKEYGFz2eiEcVHXg-4myu5cXg'
 });
 
+
+
 // POST route to handle image uploads
 router.post("/bag1", async (req, res) => {
   try {
-    // Wrap the uploadStock call in a promise to handle any potential rejections
-    const multerPromise = new Promise((resolve, reject) => {
-      uploadStock(req, res, (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
+    // Upload the file to Cloudinary directly
+    const result = await cloudinary.v2.uploader.upload(req.file.image, {
+      folder: 'bag1', // Optionally, specify the folder in Cloudinary
     });
 
-    // Wait for the multerPromise to resolve before continuing
-    await multerPromise;
-
-    const result = await cloudinary.v2.uploader.upload(req.file.path, {
-      folder: 'bag1',
-    });
-
+    // Extract necessary information from the Cloudinary response
     const originalname = req.file.filename;
+    const imageUrl = result.secure_url;
 
+    // Create a new document in your ImageModel collection with the Cloudinary URL
     const user = new ImageModel({
       name: req.body.name,
       price: req.body.price,
       token: uuidv4(),
       quantity: req.body.quantity,
-      image: originalname,
-      imageUrl: result.secure_url,
+      image: originalname, // You can choose to store the original filename
+      imageUrl: imageUrl, // Store the Cloudinary URL
     });
 
+    // Save the document to your database
     await user.save();
 
+    // Respond with a success message
     res.status(200).send({ message: "Image uploaded successfully" });
   } catch (error) {
     console.error(error);
     res.status(500).send({ message: "Image upload failed" });
   }
 });
+
 
 
 // get route to handle image from cloudinary and db
@@ -100,16 +95,19 @@ router.get('/bag1', async (req, res) => {
       .expression(`folder:${folderName}`)
       .execute();
 
-    // Create an array to store image URLs
-    const imageUrls = imageSearchResults.resources.map((resource) => resource.secure_url);
+    // Create a Set to store unique image URLs
+    const uniqueImageUrls = new Set();
+
+    // Add Cloudinary URLs for images in the "bag1" folder to the Set
+    imageSearchResults.resources.forEach((resource) => {
+      uniqueImageUrls.add(resource.secure_url);
+    });
+
+    // Convert the Set to an array
+    const imageUrls = Array.from(uniqueImageUrls);
+
     // Fetch data from your ImageModel
     const imageData = await ImageModel.find();
-
-
-    // Generate Cloudinary URLs for each image and add them to the array
-    for (const item of imageData) {
-      imageUrls.push(cloudinary.url(item.image));
-    }
 
     // Respond with image URLs and data
     res.status(200).json({ imageUrls, imageData });
@@ -193,7 +191,7 @@ router.get('/bag2', async (req, res) => {
 
 
 // post api for bag 3
-router.post("/bag3", async (req, res) => {
+router.post("/bag3", async (req, res) => {  
   try {
     // Wrap the uploadStock call in a promise to handle any potential rejections
     const multerPromise = new Promise((resolve, reject) => {
@@ -659,5 +657,52 @@ router.post("/order", async (req, res) => {
     res.status(401).json({ error });
   }
 })
+
+
+router.get('/allData', async (req, res) => {
+  try {
+    // Define folder names and model names
+    const folders = ['bag1', 'bag2', 'bag3', 'bag4'];
+    const models = [ImageModel, SecondBag, ThirdBag, FourthBag];
+
+    // Initialize an object to store the data
+    const allData = {};
+
+    // Iterate through folders and models
+    for (let i = 0; i < folders.length; i++) {
+      const folderName = folders[i];
+      const modelName = models[i];
+
+      // Fetch images from the specified folder on Cloudinary
+      const imageSearchResults = await cloudinary.v2.search
+        .expression(`folder:${folderName}`)
+        .execute();
+
+      // Create a Set to store unique image URLs
+      const uniqueImageUrls = new Set();
+
+      // Add Cloudinary URLs for images in the folder to the Set
+      imageSearchResults.resources.forEach((resource) => {
+        uniqueImageUrls.add(resource.secure_url);
+      });
+
+      // Convert the Set to an array
+      const imageUrls = Array.from(uniqueImageUrls);
+
+      // Fetch data from the model
+      const imageData = await modelName.find();
+
+      // Store the data in the allData object
+      allData[folderName] = { imageUrls, imageData };
+    }
+
+    // Respond with the combined data
+    res.status(200).json(allData);
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({ message: "Error retrieving data" });
+  }
+});
+
 
 module.exports = router;
