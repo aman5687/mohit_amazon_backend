@@ -5,7 +5,7 @@ const path = require("path");
 const { v4: uuidv4 } = require("uuid");
 const fs = require("fs");
 const cloudinary = require("cloudinary").v2;
-const ImageModel = require("../image.model");
+const productModel = require("../productModel");
 
 // Configure multer for image upload
 const storage = multer.diskStorage({
@@ -27,7 +27,7 @@ cloudinary.config({
 
 
 // POST route to handle image uploads
-router.post('/amazonApp', upload.single('image'), async (req, res) => {
+router.post('/product', upload.single('image'), async (req, res) => {
   const title = req.body.title;
   const price = req.body.price;
   const description = req.body.description;
@@ -45,7 +45,7 @@ router.post('/amazonApp', upload.single('image'), async (req, res) => {
 
   const imageUrl = cloudinaryUploadResult.secure_url;
 
-  const user = new ImageModel({
+  const user = new productModel({
     title,
     price,
     description,
@@ -65,8 +65,8 @@ router.post('/amazonApp', upload.single('image'), async (req, res) => {
 
 
 // get route to handle image from cloudinary and db
-router.get('/amazonApp', async (req, res) => {
-  ImageModel.find()
+router.get('/product', async (req, res) => {
+  productModel.find()
     .exec()
     .then((data) => {
       res.status(200).json({ data });
